@@ -30,11 +30,11 @@ class MinZeroer {
             int j = 0;
             while (j < size && array[i] >= array[mins[j]])
                 j++;
-            if (j < 3) {
+            if (j < M) {
                 for (int k = Math.min(M - 1, size); k > j; k--)
                     mins[k] = mins[k - 1];
                 mins[j] = i;
-                if (size < 3)
+                if (size < M)
                     size++;
             }
         }
