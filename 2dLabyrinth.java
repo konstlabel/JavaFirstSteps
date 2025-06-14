@@ -1,5 +1,3 @@
-// this is raw solution 
-
 // Specify a labyrinth as a two-dimensional integer array of size N by K,
 // where, for example, walls are defined by ones and passages by zeros.
 // The program must find an exit from a given point in the labyrinth in any way.
@@ -37,81 +35,55 @@ class MazeSolver {
     private static int[][] labyrinth;
     private static int[] start;
     private static int[] end;
+    private final static int[][] directions = { {-1, 0}, {1, 0}, {0, -1}, {0, 1} }; // up, down, left, right
 
-    public static int[][] getLabyrinth() {
-        return labyrinth;
-    }
-
-    public static void fillMazeSolver(int[][] copyLabyrinth, int[] newStart, int[] newEnd) {
-        try {
-            int rows = copyLabyrinth.length;
-            int columns = copyLabyrinth[0].length;
-
-            labyrinth = new int[rows][columns];
-            for (int i = 0; i < rows; i++)
-                System.arraycopy(copyLabyrinth[i], 0, labyrinth[i], 0, columns);
-
-            start = newStart;
-            end = newEnd;
-        } catch (NullPointerException e) {
-            System.err.println("Error! Null pointer: " + e.getMessage());
-        }
+    public static void fillMazeSolver(int[][] original, int[] newStart, int[] newEnd) {
+        labyrinth = original;
+        start = newStart;
+        end = newEnd;
     }
 
     private static boolean isPath(int row, int col) {
         return labyrinth[row][col] != 1;
     }
-    private static boolean isLeftPath(int row, int col) {
-        if (col == 0)
-            return false;
-        return labyrinth[row][col - 1] != 1;
+    private static boolean isValid(int row, int col) {
+        return row >= 0 && row < labyrinth.length && col >= 0 && col < labyrinth[0].length;
     }
-    private static boolean isRightPath(int row, int col) {
-        if (col == labyrinth[0].length - 1)
-            return false;
-        return labyrinth[row][col + 1] != 1;
-    }
-    private static boolean isBotPath(int row, int col) {
-        if (row == labyrinth.length - 1)
-            return false;
-        return labyrinth[row + 1][col] != 1;
-    }
-    private static boolean isTopPath(int row, int col) {
-        if (row == 0)
-            return false;
-        return labyrinth[row - 1][col] != 1;
+    private static int countAvailablePath(int row, int col) {
+        int count = 0;
+        for (int[] d : directions) {
+            int newRow = row + d[0];
+            int newCol = col + d[1];
+            if (isValid(newRow, newCol) && labyrinth[newRow][newCol] == 0)
+                count++;
+        }
+        return count;
     }
 
-    private static void fillDeadEnd(int i, int j) {
+    private static void fillDeadEnd(int row, int col) {
+        int[][] stack = new int[labyrinth.length * labyrinth[0].length][2];
+        int top = 0;
+        stack[top++] = new int[] {row, col};
 
-        if (isLeftPath(i,j))
-            j--;
-        else if (isRightPath(i,j))
-            j++;
-        else if (isBotPath(i,j))
-            i++;
-        else
-            i--;
+        while (top > 0) {
+            int[] current = stack[--top];
+            int r = current[0];
+            int c = current[1];
+            labyrinth[r][c] = 1;
 
-        if (i == start[0] && j == start[1] || i == end[0] && j == end[1])
-            return;
-
-        int paths = 0;
-        if (isLeftPath(i,j))
-            paths++;
-        if (isRightPath(i,j))
-            paths++;
-        if (isBotPath(i,j))
-            paths++;
-        if (isTopPath(i,j))
-            paths++;
-        if (paths < 2) {
-            labyrinth[i][j] = 1;
-            fillDeadEnd(i, j);
+            for (int[] d : directions) {
+                int newRow = r + d[0];
+                int newCol = c + d[1];
+                if ((newRow == start[0] && newCol == start[1]) || (newRow == end[0] && newCol == end[1]))
+                    continue;
+                if (isValid(newRow, newCol) && isPath(newRow, newCol) && countAvailablePath(newRow, newCol) < 2) {
+                    stack[top++] = new int[] {newRow, newCol};
+                }
+            }
         }
     }
 
-    private static void findDeadEnds() {
+    public static void findSolution() {
         int rows = labyrinth.length;
         int columns  = labyrinth[0].length;
 
@@ -119,69 +91,61 @@ class MazeSolver {
             for (int j = 0; j < columns; j++) {
                 if (i == start[0] && j == start[1] || i == end[0] && j == end[1])
                     continue;
-                if (isPath(i,j)) {
-                    int paths = 0;
-                    if (isLeftPath(i,j))
-                        paths++;
-                    if (isRightPath(i,j))
-                        paths++;
-                    if (isBotPath(i,j))
-                        paths++;
-                    if (isTopPath(i,j))
-                        paths++;
-                    if (paths < 2) {
-                        labyrinth[i][j] = 1;
-                        fillDeadEnd(i, j);
-                    }
+                if (isPath(i,j) && countAvailablePath(i,j) < 2) {
+                    fillDeadEnd(i, j);
                 }
             }
         }
-    }
-
-    public static void findSolution() {
-        findDeadEnds();
     }
 }
 
 class InOutputProcess {
     public int[] inputSize(BufferedReader bf) throws IOException {
-        int[] size = new int[]{3, 3};
+        int[] size = new int[2];
         int count = 0;
+
         while (count < 2) {
             String line = bf.readLine();
             if (line == null)
                 break;
+
             StringTokenizer st = new StringTokenizer(line);
             while (st.hasMoreTokens() && count < 2) {
                 size[count++] = Integer.parseInt(st.nextToken());
             }
         }
+
         return size;
     }
 
     public void fillLabyrinth (BufferedReader br, int[][] labyrinth, int[] size) {
         try {
-            System.out.print("0| ");
+            // Output header
+            System.out.print("   ");
             for (int i = 1; i <= size[1]; i ++) {
                 System.out.print(i + " ");
             }
             System.out.println();
             for (int i = 0; i <= size[0]; i ++) {
-                System.out.print("--");
+                System.out.print("__");
             }
             System.out.println();
+
+            // Input rows
             for (int row = 0; row < size[0]; row++) {
                 System.out.print(row + 1 + "| ");
+
                 String[] tokens = br.readLine().trim().split("\\s+");
                 if (tokens.length != size[1]) {
                     System.out.println("Error! Expected " + size[1] + " values, got " + tokens.length);
                     row--;
                     continue;
                 }
+
                 for (int column = 0; column < size[1]; column++) {
                     int x = Integer.parseInt(tokens[column]);
                     if (x > 1 || x < 0) {
-                        System.out.println("Error! Expected '0' or '1', got " + x + "(index = " + column + "). Rewrite column.");
+                        System.out.println("Error! Expected '0' or '1', got " + x + "(index = " + (column+1) + "). Rewrite column.");
                         row--;
                         continue;
                     }
@@ -198,19 +162,22 @@ class InOutputProcess {
     public int[] inputPoint(BufferedReader br, int[] size) {
         int[] point = new int[2];
         int count = 0;
+
         try {
             while (count < 2) {
                 String line = br.readLine();
                 if (line == null)
                     break;
+
                 StringTokenizer st = new StringTokenizer(line);
                 while (st.hasMoreTokens() && count < 2) {
-                    int x = Integer.parseInt(st.nextToken());
-                    if (x < 0 || count == 0 && x > size[0] || count == 1 && x > size[1]) {
-                        System.out.println("Error! Expected " + size[0] + " by rows and " + size[1]+ " by columns, got " + x);
+                    int x = Integer.parseInt(st.nextToken()) - 1;
+                    if (x < 0 || count == 0 && x >= size[0] || count == 1 && x >= size[1]) {
+                        System.out.println("Error! Expected min 1 and max " + size[0] + " rows and min 1 and max " + size[1] + " columns, got " + (x+1));
                         continue;
                     }
-                    point[count++] = x-1;
+
+                    point[count++] = x;
                 }
             }
         } catch (IOException e) {
@@ -218,18 +185,23 @@ class InOutputProcess {
         } catch (NullPointerException e) {
             System.err.println("Error! Null pointer: " + e.getMessage());
         }
+
         return point;
     }
+
     public void outputLabyrinth(int[][] labyrinth, int[] size) {
         try {
-            System.out.print("0| ");
+            // Output header
+            System.out.print("   ");
             for (int i = 1; i <= size[1]; i ++) {
                 System.out.print(i + " ");
             }
             System.out.println();
             for (int i = 0; i <= size[1]; i ++) {
-                System.out.print("--");
+                System.out.print("__");
             }
+
+            // Output rows
             System.out.println();
             for (int i = 0; i < size[0]; i++) {
                 System.out.print(i + 1 + "| ");
@@ -245,7 +217,7 @@ class InOutputProcess {
 }
 
 public class Main {
-    public static void main() throws IOException {
+    public static void main(String[] args) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 
         // Enter size
@@ -259,11 +231,11 @@ public class Main {
         // Initialized labyrinth
         Labyrinthium labyrinthium = new Labyrinthium(size);
 
-        // Create labyrinth
+        // Create (fill) labyrinth
         System.out.println("Enter elements of array (1 - wall, 0 - path)");
         ip.fillLabyrinth(br, labyrinthium.getLabyrinth(), labyrinthium.getSize());
 
-        // Initialized start point
+        // Initialized start and end points
         System.out.println("Enter start point (it must contain 0)");
         int[] start;
         do {
@@ -275,15 +247,16 @@ public class Main {
             end = ip.inputPoint(br, size);
         } while (labyrinthium.getPoint(end[0], end[1]) != 0);
 
+        // Output labyrinth
+        System.out.println("\nLabyrinth:");
+        ip.outputLabyrinth(labyrinthium.getLabyrinth(), labyrinthium.getSize());
+
         // Find a solution
         MazeSolver.fillMazeSolver(labyrinthium.getLabyrinth(), start, end);
         MazeSolver.findSolution();
 
-        // Output labyrinth
-        System.out.println("\nLabyrinth:");
-        ip.outputLabyrinth(labyrinthium.getLabyrinth(), labyrinthium.getSize());
+        // Output solution
         System.out.println("\nSolution:");
-        ip.outputLabyrinth(MazeSolver.getLabyrinth(), labyrinthium.getSize());
-
+        ip.outputLabyrinth(labyrinthium.getLabyrinth(), labyrinthium.getSize());
     }
 }
